@@ -1,0 +1,28 @@
+{
+    "name": "tuzycms/cms",
+    "description": "CMS System with DDD Architecture",
+    "type": "project",
+    "require": {
+        "php": ">=8.3",
+        "ext-json": "*",
+        "ext-openssl": "*",
+        "ext-pdo": "*",
+        "symfony/var-dumper": "^7.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\": "src/Modules/",
+            "Core\\": "src/Core/",
+            "Shared\\": "src/Shared/",
+            "TuzyCMS\\": "src/"
+        },
+        "files": [
+            "src/Shared/Infrastructure/Support/helpers.php"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "TuzyCMS\\Tests\\": "tests/"
+        }
+    }
+}

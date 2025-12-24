@@ -1,0 +1,9 @@
+---
+alwaysApply: true
+---
+
+- prefer using design pattern to solve functional
+- prefer SOLID, KISS, others programming pricipals 
+- perfer security over performance when meet critical problem
+- alway check for performance and improve if you can
+- We will use Illuminate/Support

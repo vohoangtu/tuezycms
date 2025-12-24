@@ -1,0 +1,339 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Modules\User\Application\Service;
+
+use Modules\User\Domain\Model\User;
+use Modules\User\Infrastructure\Repository\UserRepository;
+use Modules\Authorization\Application\Service\AuthorizationService;
+use Shared\Infrastructure\Exception\UnauthorizedException;
+use Shared\Infrastructure\Exception\ForbiddenException;
+
+class AuthService
+{
+    // Session timeout in seconds (default: 30 minutes)
+    private const SESSION_TIMEOUT = 1800;
+    
+    private UserRepository $userRepository;
+    private ?AuthorizationService $authorizationService = null;
+
+    public function __construct(
+        UserRepository $userRepository,
+        ?AuthorizationService $authorizationService = null
+    ) {
+        $this->userRepository = $userRepository;
+        $this->authorizationService = $authorizationService;
+    }
+
+    /**
+     * Authenticate user by email and password
+     */
+    public function authenticate(string $email, string $password): ?User
+    {
+        $user = $this->userRepository->findByEmail($email);
+        
+        if ($user === null) {
+            return null;
+        }
+
+        if (!$user->isActive()) {
+            return null;
+        }
+
+        if (!password_verify($password, $user->getPasswordHash())) {
+            return null;
+        }
+
+        // Update last login
+        $user->setLastLoginAt(new \DateTimeImmutable());
+        $this->userRepository->save($user);
+
+        return $user;
+    }
+
+    /**
+     * Create new user
+     */
+    public function createUser(
+        string $email,
+        string $password,
+        string $fullName,
+        string $role = 'admin'
+    ): User {
+        // Check if user exists
+        $existing = $this->userRepository->findByEmail($email);
+        if ($existing !== null) {
+            throw new \RuntimeException('User with this email already exists.');
+        }
+
+        $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+        $user = new User($email, $passwordHash, $fullName, $role);
+        
+        $this->userRepository->save($user);
+
+        return $user;
+    }
+
+    /**
+     * Change user password
+     */
+    public function changePassword(User $user, string $newPassword): void
+    {
+        $passwordHash = password_hash($newPassword, PASSWORD_DEFAULT);
+        $user->setPasswordHash($passwordHash);
+        $this->userRepository->save($user);
+    }
+
+    /**
+     * Get current authenticated user from session
+     */
+    public function getCurrentUser(): ?User
+    {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        $userId = $_SESSION['user_id'] ?? null;
+        if ($userId === null) {
+            return null;
+        }
+        
+        // Check session timeout
+        if ($this->isSessionExpired()) {
+            $this->logout();
+            return null;
+        }
+        
+        // Update last activity time
+        $this->updateLastActivity();
+
+        return $this->userRepository->findById((int)$userId);
+    }
+
+    /**
+     * Login user (set session)
+     */
+    public function login(User $user): void
+    {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        $_SESSION['user_id'] = $user->getId();
+        $_SESSION['user_email'] = $user->getEmail();
+        $_SESSION['user_role'] = $user->getRole();
+        $_SESSION['last_activity'] = time();
+        $_SESSION['login_time'] = time();
+    }
+
+    /**
+     * Logout user
+     */
+    public function logout(): void
+    {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        unset($_SESSION['user_id']);
+        unset($_SESSION['user_email']);
+        unset($_SESSION['user_role']);
+        unset($_SESSION['last_activity']);
+        unset($_SESSION['login_time']);
+        
+        session_destroy();
+    }
+
+    /**
+     * Check if user is authenticated
+     */
+    public function isAuthenticated(): bool
+    {
+        return $this->getCurrentUser() !== null;
+    }
+
+    /**
+     * Check if user is admin
+     */
+    public function isAdmin(): bool
+    {
+        $user = $this->getCurrentUser();
+        return $user !== null && $user->isAdmin();
+    }
+
+    /**
+     * Require authentication (throw exception if not authenticated)
+     */
+    public function requireAuth(): User
+    {
+        $user = $this->getCurrentUser();
+        if ($user === null) {
+            throw new \RuntimeException('Authentication required.');
+        }
+        return $user;
+    }
+
+    /**
+     * Require admin role
+     */
+    public function requireAdmin(): User
+    {
+        $user = $this->requireAuth();
+        if (!$user->isAdmin()) {
+            throw new ForbiddenException('Admin access required.');
+        }
+        return $user;
+    }
+
+    /**
+     * Check if current user has a specific permission
+     *
+     * @param string $permission Permission name (e.g., 'articles.create')
+     * @return bool
+     */
+    public function can(string $permission): bool
+    {
+        if ($this->authorizationService === null) {
+            return false;
+        }
+        
+        $user = $this->getCurrentUser();
+        if ($user === null) {
+            return false;
+        }
+        
+        return $this->authorizationService->userCan($user, $permission);
+    }
+
+    /**
+     * Check if current user has a specific role
+     *
+     * @param string $roleName Role name (e.g., 'admin')
+     * @return bool
+     */
+    public function hasRole(string $roleName): bool
+    {
+        if ($this->authorizationService === null) {
+            return false;
+        }
+        
+        $user = $this->getCurrentUser();
+        if ($user === null) {
+            return false;
+        }
+        
+        return $this->authorizationService->userHasRole($user, $roleName);
+    }
+
+    /**
+     * Require a specific permission (throw exception if not authorized)
+     *
+     * @param string $permission Permission name (e.g., 'articles.create')
+     * @return User
+     * @throws UnauthorizedException
+     * @throws ForbiddenException
+     */
+    public function requirePermission(string $permission): User
+    {
+        $user = $this->requireAuth();
+        
+        if ($this->authorizationService === null) {
+            throw new ForbiddenException('Authorization service not available.');
+        }
+        
+        if (!$this->authorizationService->userCan($user, $permission)) {
+            throw new ForbiddenException("Permission required: {$permission}");
+        }
+        
+        return $user;
+    }
+
+    /**
+     * Require a specific role (throw exception if not authorized)
+     *
+     * @param string $roleName Role name (e.g., 'admin')
+     * @return User
+     * @throws UnauthorizedException
+     * @throws ForbiddenException
+     */
+    public function requireRole(string $roleName): User
+    {
+        $user = $this->requireAuth();
+        
+        if ($this->authorizationService === null) {
+            throw new ForbiddenException('Authorization service not available.');
+        }
+        
+        if (!$this->authorizationService->userHasRole($user, $roleName)) {
+            throw new ForbiddenException("Role required: {$roleName}");
+        }
+        
+        return $user;
+    }
+
+    /**
+     * Set authorization service (for dependency injection)
+     *
+     * @param AuthorizationService $authorizationService
+     * @return void
+     */
+    public function setAuthorizationService(AuthorizationService $authorizationService): void
+    {
+        $this->authorizationService = $authorizationService;
+    }
+
+    /**
+     * Check if session has expired
+     *
+     * @return bool
+     */
+    private function isSessionExpired(): bool
+    {
+        if (!isset($_SESSION['last_activity'])) {
+            return true;
+        }
+
+        $inactiveTime = time() - $_SESSION['last_activity'];
+        
+        return $inactiveTime > self::SESSION_TIMEOUT;
+    }
+
+    /**
+     * Update last activity timestamp
+     *
+     * @return void
+     */
+    private function updateLastActivity(): void
+    {
+        $_SESSION['last_activity'] = time();
+    }
+
+    /**
+     * Get session timeout in seconds
+     *
+     * @return int
+     */
+    public function getSessionTimeout(): int
+    {
+        return self::SESSION_TIMEOUT;
+    }
+
+    /**
+     * Get remaining session time in seconds
+     *
+     * @return int
+     */
+    public function getRemainingSessionTime(): int
+    {
+        if (!isset($_SESSION['last_activity'])) {
+            return 0;
+        }
+
+        $elapsed = time() - $_SESSION['last_activity'];
+        $remaining = self::SESSION_TIMEOUT - $elapsed;
+
+        return max(0, $remaining);
+    }
+}
+

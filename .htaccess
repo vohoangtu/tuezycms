@@ -1,0 +1,11 @@
+RewriteEngine On
+
+# Serve uploads directly
+RewriteCond %{REQUEST_URI} ^/uploads/
+RewriteRule ^uploads/(.*)$ public/uploads/index.php?file=$1 [L,QSA]
+
+# Standard routing - all requests go to index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]
+
