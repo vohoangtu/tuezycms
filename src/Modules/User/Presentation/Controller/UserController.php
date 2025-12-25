@@ -9,7 +9,9 @@ use Modules\User\Infrastructure\Repository\UserRepository;
 use Modules\Authorization\Infrastructure\Repository\RoleRepository;
 use Modules\User\Domain\Model\User;
 use Modules\User\Domain\Event\UserCreatedEvent;
+use Modules\User\Domain\Event\UserUpdatedEvent;
 use Modules\User\Domain\Event\UserDeletedEvent;
+use Shared\Infrastructure\Event\EventDispatcher;
 use Modules\User\Application\Service\AuthService;
 use Shared\Infrastructure\Security\KeyValidator;
 use Shared\Infrastructure\Http\Request;
@@ -186,10 +188,13 @@ class UserController extends BaseController
 
         $this->userRepository->save($user);
 
-        // Sync roles
+        //Sync roles
         if (!empty($data['roles'])) {
             $this->userRepository->syncRoles($user->getId(), $data['roles']);
         }
+
+        // Dispatch UserCreatedEvent  
+        EventDispatcher::getInstance()->dispatch(new UserCreatedEvent($user));
 
         // Event dispatched in repository
         $this->json([
@@ -237,6 +242,15 @@ class UserController extends BaseController
             $this->userRepository->syncRoles($id, $data['roles']);
         }
 
+        // Dispatch UserUpdatedEvent
+        $changes = array_keys(array_filter([
+            'full_name' => isset($data['full_name']),
+            'is_active' => isset($data['is_active']),
+            'password' => !empty($data['password']),
+            'roles' => isset($data['roles'])
+        ]));
+        EventDispatcher::getInstance()->dispatch(new UserUpdatedEvent($user, $changes));
+
         $this->json([
             'success' => true,
             'message' => 'User updated successfully'
@@ -262,7 +276,11 @@ class UserController extends BaseController
             return;
         }
 
+        $email = $user->getEmail();
         $this->userRepository->delete($id);
+
+        // Dispatch UserDeletedEvent
+        EventDispatcher::getInstance()->dispatch(new UserDeletedEvent($id, $email));
 
         // Event dispatched in repository
         $this->json([

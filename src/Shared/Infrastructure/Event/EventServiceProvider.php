@@ -26,8 +26,42 @@ class EventServiceProvider
             $clearCacheListener->handleUserCreated($event);
         });
 
+        $dispatcher->listen('user.updated', function($event) use ($clearCacheListener) {
+            $clearCacheListener->handleUserUpdated($event);
+        });
+
         $dispatcher->listen('user.deleted', function($event) use ($clearCacheListener) {
             $clearCacheListener->handleUserDeleted($event);
+        });
+
+        // Module events
+        $moduleListener = new \Modules\Module\Application\Listener\ClearModuleCacheListener();
+        $dispatcher->listen('module.toggled', function($event) use ($moduleListener) {
+            $moduleListener->handleModuleToggled($event);
+        });
+        $dispatcher->listen('module.configured', function($event) use ($moduleListener) {
+            $moduleListener->handleModuleConfigured($event);
+        });
+
+        // Configuration events
+        $configListener = new \Shared\Application\Listener\ConfigurationCacheListener();
+        $dispatcher->listen('configuration.toggled', function($event) use ($configListener) {
+            $configListener->handleConfigurationToggled($event);
+        });
+        $dispatcher->listen('configuration.updated', function($event) use ($configListener) {
+            $configListener->handleConfigurationUpdated($event);
+        });
+
+        // Product events
+        $productListener = new \Modules\Product\Application\Listener\ClearProductCacheListener();
+        $dispatcher->listen('product.created', function($event) use ($productListener) {
+            $productListener->handleProductCreated($event);
+        });
+        $dispatcher->listen('product.updated', function($event) use ($productListener) {
+            $productListener->handleProductUpdated($event);
+        });
+        $dispatcher->listen('product.deleted', function($event) use ($productListener) {
+            $productListener->handleProductDeleted($event);
         });
 
         // Future: Add more event listeners here

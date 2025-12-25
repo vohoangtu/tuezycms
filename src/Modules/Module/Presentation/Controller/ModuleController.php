@@ -12,6 +12,11 @@ use Shared\Infrastructure\Security\KeyValidator;
 use Modules\Module\Application\Service\ModuleService;
 use Modules\Module\Infrastructure\Repository\ModuleRepository;
 
+// Event-Driven imports
+use Shared\Infrastructure\Event\EventDispatcher;
+use Modules\Module\Domain\Event\ModuleToggledEvent;
+use Modules\Module\Domain\Event\ModuleConfiguredEvent;
+
 /**
  * Module Controller
  * API endpoints for module management
@@ -147,6 +152,11 @@ class ModuleController extends BaseController
 
             $this->moduleService->toggleModule($module->getName(), (bool) $enabled);
             
+            // Dispatch ModuleToggledEvent
+            EventDispatcher::getInstance()->dispatch(
+                new ModuleToggledEvent($id, $module->getName(), (bool)$enabled)
+            );
+            
             $this->json([
                 'success' => true,
                 'message' => $enabled ? 'Module enabled successfully' : 'Module disabled successfully'
@@ -196,6 +206,11 @@ class ModuleController extends BaseController
             }
 
             $this->moduleService->updateModuleConfig($module->getName(), $config);
+            
+            // Dispatch ModuleConfiguredEvent
+            EventDispatcher::getInstance()->dispatch(
+                new ModuleConfiguredEvent($id, $module->getName(), $config)
+            );
             
             $this->json([
                 'success' => true,

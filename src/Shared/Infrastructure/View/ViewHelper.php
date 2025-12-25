@@ -220,15 +220,14 @@ class ViewHelper
      */
     public function csrf(): string
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
+        $token = \Shared\Infrastructure\Session\SessionManager::get('csrf_token');
+        
+        if (!$token) {
+            $token = bin2hex(random_bytes(32));
+            \Shared\Infrastructure\Session\SessionManager::set('csrf_token', $token);
         }
         
-        if (!isset($_SESSION['csrf_token'])) {
-            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-        }
-        
-        return $_SESSION['csrf_token'];
+        return $token;
     }
 
     /**

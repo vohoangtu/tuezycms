@@ -152,16 +152,15 @@ class UserRepository
      */
     public function getPermissions(int $userId): array
     {
-        $stmt = $this->db->prepare("
-            SELECT DISTINCT p.* FROM permissions p
-            INNER JOIN role_permissions rp ON p.id = rp.permission_id
-            INNER JOIN user_roles ur ON rp.role_id = ur.role_id
-            WHERE ur.user_id = :user_id
-            ORDER BY p.resource, p.action
-        ");
-        $stmt->execute([':user_id' => $userId]);
-        
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        return Cache::remember("user:{$userId}:permissions", 3600, function() use ($userId) {
+            return DB::raw("
+                SELECT DISTINCT p.* FROM permissions p
+                INNER JOIN role_permissions rp ON p.id = rp.permission_id
+                INNER JOIN user_roles ur ON rp.role_id = ur.role_id
+                WHERE ur.user_id = ?
+                ORDER BY p.resource, p.action
+            ", [$userId]);
+        });
     }
 
     /**
@@ -202,13 +201,12 @@ class UserRepository
      */
     public function findAll(): array
     {
-        $stmt = $this->db->query("SELECT * FROM users ORDER BY created_at DESC");
-        
-        $users = [];
-        while ($data = $stmt->fetch(\PDO::FETCH_ASSOC)) {
-            $users[] = $this->mapToEntity($data);
-        }
-        
-        return $users;
+        return Cache::remember('users:all', 3600, function() {
+            $data = DB::table('users')
+                ->orderBy('created_at', 'DESC')
+                ->get();
+            
+            return array_map(fn($row) => $this->mapToEntity($row), $data);
+        });
     }
 }

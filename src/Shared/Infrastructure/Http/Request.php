@@ -293,6 +293,38 @@ class Request
     }
 
     /**
+     * Get JSON body data
+     *
+     * @param string|null $key
+     * @param mixed $default
+     * @return mixed
+     */
+    public function json(?string $key = null, mixed $default = null): mixed
+    {
+        if ($this->jsonBody === null) {
+            return $default;
+        }
+
+        if ($key === null) {
+            return $this->jsonBody;
+        }
+
+        return $this->jsonBody[$key] ?? $default;
+    }
+
+    /**
+     * Get flash data
+     *
+     * @param string $key
+     * @param mixed $value
+     * @return mixed
+     */
+    public function flash(string $key, mixed $value = null): mixed
+    {
+        return \Shared\Infrastructure\Session\SessionManager::flash($key, $value);
+    }
+
+    /**
      * Get session data
      *
      * @param string|null $key
@@ -301,16 +333,9 @@ class Request
      */
     public function session(?string $key = null, mixed $default = null): mixed
     {
-        // Start session if not started
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-
-        if ($key === null) {
-            return $_SESSION ?? [];
-        }
-
-        return $_SESSION[$key] ?? $default;
+        return $key === null 
+            ? \Shared\Infrastructure\Session\SessionManager::all()
+            : \Shared\Infrastructure\Session\SessionManager::get($key, $default);
     }
 
     /**
@@ -322,12 +347,7 @@ class Request
      */
     public function setSession(string $key, mixed $value): void
     {
-        // Start session if not started
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-
-        $_SESSION[$key] = $value;
+        \Shared\Infrastructure\Session\SessionManager::set($key, $value);
     }
 
     /**
@@ -338,12 +358,7 @@ class Request
      */
     public function hasSession(string $key): bool
     {
-        // Start session if not started
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-
-        return isset($_SESSION[$key]);
+        return \Shared\Infrastructure\Session\SessionManager::has($key);
     }
 
     /**
@@ -354,12 +369,7 @@ class Request
      */
     public function removeSession(string $key): void
     {
-        // Start session if not started
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-
-        unset($_SESSION[$key]);
+        \Shared\Infrastructure\Session\SessionManager::remove($key);
     }
 
     /**

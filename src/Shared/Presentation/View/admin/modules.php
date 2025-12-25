@@ -104,4 +104,4 @@ $pageTitle = $pageData['pageTitle'] ?? 'Modules Management';
     </div>
 </div>
 
-<script src="/admin/assets/js/modules.js"></script>
+<script src="/public/admin/assets/js/modules.js"></script>

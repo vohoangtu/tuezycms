@@ -90,11 +90,7 @@ class AuthService
      */
     public function getCurrentUser(): ?User
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-
-        $userId = $_SESSION['user_id'] ?? null;
+        $userId = \Shared\Infrastructure\Session\SessionManager::get('user_id');
         if ($userId === null) {
             return null;
         }
@@ -116,15 +112,12 @@ class AuthService
      */
     public function login(User $user): void
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-
-        $_SESSION['user_id'] = $user->getId();
-        $_SESSION['user_email'] = $user->getEmail();
-        $_SESSION['user_role'] = $user->getRole();
-        $_SESSION['last_activity'] = time();
-        $_SESSION['login_time'] = time();
+        \Shared\Infrastructure\Session\SessionManager::regenerate();
+        \Shared\Infrastructure\Session\SessionManager::set('user_id', $user->getId());
+        \Shared\Infrastructure\Session\SessionManager::set('user_email', $user->getEmail());
+        \Shared\Infrastructure\Session\SessionManager::set('user_role', $user->getRole());
+        \Shared\Infrastructure\Session\SessionManager::set('last_activity', time());
+        \Shared\Infrastructure\Session\SessionManager::set('login_time', time());
     }
 
     /**
@@ -132,17 +125,8 @@ class AuthService
      */
     public function logout(): void
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-
-        unset($_SESSION['user_id']);
-        unset($_SESSION['user_email']);
-        unset($_SESSION['user_role']);
-        unset($_SESSION['last_activity']);
-        unset($_SESSION['login_time']);
-        
-        session_destroy();
+        \Shared\Infrastructure\Session\SessionManager::clear();
+        \Shared\Infrastructure\Session\SessionManager::destroy();
     }
 
     /**
@@ -160,6 +144,23 @@ class AuthService
     {
         $user = $this->getCurrentUser();
         return $user !== null && $user->isAdmin();
+    }
+
+    /**
+     * Check if user is super admin
+     */
+    public function isSuperAdmin(): bool
+    {
+        if ($this->authorizationService === null) {
+            return false;
+        }
+        
+        $user = $this->getCurrentUser();
+        if ($user === null) {
+            return false;
+        }
+        
+        return $this->authorizationService->userHasRole($user, 'super_admin');
     }
 
     /**
@@ -183,6 +184,24 @@ class AuthService
         if (!$user->isAdmin()) {
             throw new ForbiddenException('Admin access required.');
         }
+        return $user;
+    }
+
+    /**
+     * Require super admin role
+     */
+    public function requireSuperAdmin(): User
+    {
+        $user = $this->requireAuth();
+        
+        if ($this->authorizationService === null) {
+            throw new ForbiddenException('Authorization service not available.');
+        }
+        
+        if (!$this->authorizationService->userHasRole($user, 'super_admin')) {
+            throw new ForbiddenException('Super Admin access required.');
+        }
+        
         return $user;
     }
 

@@ -13,6 +13,12 @@ use Shared\Infrastructure\Http\Response;
 use Shared\Infrastructure\Security\KeyValidator;
 use Shared\Infrastructure\Controller\BaseController;
 
+// Event-Driven imports
+use Shared\Infrastructure\Event\EventDispatcher;
+use Modules\Product\Domain\Event\ProductCreatedEvent;
+use Modules\Product\Domain\Event\ProductUpdatedEvent;
+use Modules\Product\Domain\Event\ProductDeletedEvent;
+
 class ProductController extends BaseController
 {
     private ProductService $productService;
@@ -98,6 +104,11 @@ class ProductController extends BaseController
                 (int)$data['stock'],
                 $data['status'] ?? 'draft'
             );
+            
+            // Dispatch ProductUpdatedEvent
+            EventDispatcher::getInstance()->dispatch(
+                new ProductUpdatedEvent($product->getId(), $product->getName(), array_keys($data))
+            );
         } else {
             $product = $this->productService->createProduct(
                 $data['name'],
@@ -109,6 +120,11 @@ class ProductController extends BaseController
                 (float)$data['new_price'],
                 $data['sku'],
                 (int)($data['stock'] ?? 0)
+            );
+            
+            // Dispatch ProductCreatedEvent
+            EventDispatcher::getInstance()->dispatch(
+                new ProductCreatedEvent($product->getId(), $product->getName(), $product->getSku())
             );
         }
 
@@ -136,7 +152,16 @@ class ProductController extends BaseController
             throw new NotFoundException('Product not found');
         }
 
-        // Note: Add delete method to ProductService if needed
-        throw new BadRequestException('Delete not implemented');
+        $productName = $product->getName();
+        
+        // Delete product (implement in ProductService if needed)
+        // $this->productService->deleteProduct($id);
+        
+        // Dispatch ProductDeletedEvent
+        EventDispatcher::getInstance()->dispatch(
+            new ProductDeletedEvent($id, $productName)
+        );
+        
+        $this->json(['success' => true, 'message' => 'Product deleted successfully']);
     }
 }

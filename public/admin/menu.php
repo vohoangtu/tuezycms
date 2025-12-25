@@ -12,11 +12,30 @@ $authService = $container->make(AuthService::class);
 $user = $authService->getCurrentUser();
 $currentPage = basename($pageFile ?? 'dashboard', '.php');
 
+// DEBUG: Check Super Admin status
+$debugInfo = [];
+$debugInfo['user_id'] = $user->getId();
+$debugInfo['user_email'] = $user->getEmail();
+
+try {
+    $authorizationService = $container->make(\Modules\Authorization\Application\Service\AuthorizationService::class);
+    $roles = $authorizationService->getUserRoles($user);
+    $debugInfo['roles'] = array_map(fn($r) => $r->getName(), $roles);
+    $debugInfo['is_super_admin_direct'] = $authorizationService->userHasRole($user, 'super_admin');
+    $debugInfo['is_super_admin_service'] = $authService->isSuperAdmin();
+} catch (\Exception $e) {
+    $debugInfo['error'] = $e->getMessage();
+}
+
+// Log to HTML comment for debugging
+$debugHtml = "<!-- DEBUG Super Admin Check:\n" . print_r($debugInfo, true) . "\n-->";
+
 // Helper function to check if menu item is active
 $isActive = function($page) use ($currentPage) {
     return $currentPage === $page ? 'active' : '';
 };
 ?>
+<?= $debugHtml ?>
 <!-- ========== App Menu ========== -->
 <div class="app-menu navbar-menu">
     <!-- LOGO -->
@@ -116,12 +135,40 @@ $isActive = function($page) use ($currentPage) {
                     </a>
                 </li>
 
-                <!-- Cài đặt -->
+                <!-- Divider -->
+                <li class="menu-title"><span>Quản Lý Hệ Thống</span></li>
+
+                <!-- Users -->
+                <li class="nav-item">
+                    <a class="nav-link menu-link <?= $isActive('users') ?>" href="/admin/users">
+                        <i class="ri-user-line"></i> <span>Người dùng</span>
+                    </a>
+                </li>
+
+                <!-- Roles & Permissions -->
+                <li class="nav-item">
+                    <a class="nav-link menu-link <?= $isActive('roles') ?>" href="/admin/roles">
+                        <i class="ri-shield-user-line"></i> <span>Vai trò & Quyền</span>
+                    </a>
+                </li>
+
+                <?php if ($authService->isSuperAdmin()): ?>
+                <!-- Modules (Super Admin Only) -->
+                <li class="nav-item">
+                    <a class="nav-link menu-link <?= $isActive('modules') ?>" href="/admin/modules">
+                        <i class="ri-puzzle-line"></i> <span>Modules</span>
+                        <span class="badge bg-danger-subtle text-danger">Super Admin</span>
+                    </a>
+                </li>
+
+                <!-- Settings (Super Admin Only) -->
                 <li class="nav-item">
                     <a class="nav-link menu-link <?= $isActive('settings') ?>" href="/admin/settings">
                         <i class="ri-settings-3-line"></i> <span>Cài đặt</span>
+                        <span class="badge bg-danger-subtle text-danger">Super Admin</span>
                     </a>
                 </li>
+                <?php endif; ?>
 
             </ul>
         </div>

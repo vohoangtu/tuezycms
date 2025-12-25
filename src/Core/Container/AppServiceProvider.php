@@ -97,7 +97,25 @@ class AppServiceProvider extends ServiceProvider
 
         // Register services as singletons
         $container->singleton(ArticleService::class, ArticleService::class);
-        $container->singleton(AuthService::class, AuthService::class);
+        
+        // Register AuthorizationService
+        $container->singleton(\Modules\Authorization\Application\Service\AuthorizationService::class, function($container) {
+            return new \Modules\Authorization\Application\Service\AuthorizationService(
+                $container->make(UserRepository::class),
+                $container->make(RoleRepository::class),
+                $container->make(PermissionRepository::class)
+            );
+        });
+        
+        // Register AuthService with AuthorizationService
+        $container->singleton(AuthService::class, function($container) {
+            $authService = new AuthService(
+                $container->make(UserRepository::class),
+                $container->make(\Modules\Authorization\Application\Service\AuthorizationService::class)
+            );
+            return $authService;
+        });
+        
         $container->singleton(CartService::class, CartService::class);
         $container->singleton(MediaService::class, function($container) {
             return new MediaService(
@@ -118,10 +136,42 @@ class AppServiceProvider extends ServiceProvider
         });
         $container->singleton(WarehouseService::class, WarehouseService::class);
 
+        // Register notification and utility services
+        $container->singleton(\Shared\Infrastructure\Service\EmailService::class, \Shared\Infrastructure\Service\EmailService::class);
+        $container->singleton(\Shared\Infrastructure\Service\SmsService::class, \Shared\Infrastructure\Service\SmsService::class);
+        $container->singleton(\Shared\Infrastructure\Service\BackupService::class, \Shared\Infrastructure\Service\BackupService::class);
+
         // Register middleware
         $container->singleton(AuthMiddleware::class, function($container) {
             return new AuthMiddleware(
                 $container->make(AuthService::class)
+            );
+        });
+
+        $container->singleton(\Shared\Infrastructure\Middleware\SuperAdminMiddleware::class, function($container) {
+            return new \Shared\Infrastructure\Middleware\SuperAdminMiddleware(
+                $container->make(AuthService::class)
+            );
+        });
+
+        $container->singleton(\Shared\Infrastructure\Middleware\MaintenanceMiddleware::class, function($container) {
+            return new \Shared\Infrastructure\Middleware\MaintenanceMiddleware(
+                $container->make(AuthService::class),
+                $container->make(Response::class)
+            );
+        });
+
+        $container->singleton(\Shared\Infrastructure\Middleware\SessionTimeoutMiddleware::class, function($container) {
+            return new \Shared\Infrastructure\Middleware\SessionTimeoutMiddleware(
+                $container->make(AuthService::class),
+                $container->make(Response::class)
+            );
+        });
+
+        $container->singleton(\Shared\Infrastructure\Middleware\ThrottleMiddleware::class, function($container) {
+            return new \Shared\Infrastructure\Middleware\ThrottleMiddleware(
+                $container->make(Response::class),
+                $container->make(\Shared\Infrastructure\Cache\Cache::class)
             );
         });
 

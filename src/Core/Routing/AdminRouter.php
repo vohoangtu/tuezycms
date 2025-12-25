@@ -45,10 +45,11 @@ class AdminRouter
      */
     public function route(): void
     {
-        // Start session
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
+        // Start session using centralized manager
+        \Shared\Infrastructure\Session\SessionManager::start();
+
+        // Apply global middlewares
+        $this->applyGlobalMiddlewares();
 
         try {
             // Get path and method
@@ -100,6 +101,10 @@ class AdminRouter
                 $authMiddleware = $this->container->make(AuthMiddleware::class);
                 $authMiddleware->setRequestResponse($this->request, $this->response);
                 $authMiddleware->requireAuth();
+            } elseif ($middlewareClass === 'super_admin') {
+                $superAdminMiddleware = $this->container->make(\Shared\Infrastructure\Middleware\SuperAdminMiddleware::class);
+                $superAdminMiddleware->setRequestResponse($this->request, $this->response);
+                $superAdminMiddleware->requireSuperAdmin();
             } elseif (class_exists($middlewareClass)) {
                 $middlewareInstance = $this->container->make($middlewareClass);
                 if (method_exists($middlewareInstance, 'handle')) {
@@ -143,4 +148,36 @@ class AdminRouter
         }
     }
 
+    /**
+     * Apply global middlewares that run on every request
+     */
+    private function applyGlobalMiddlewares(): void
+    {
+        // Maintenance Mode - check first (blocks all non-super-admin users)
+        try {
+            $maintenanceMiddleware = $this->container->make(\Shared\Infrastructure\Middleware\MaintenanceMiddleware::class);
+            $result = $maintenanceMiddleware->handle($this->request, function ($request) {
+                return true; // Continue
+            });
+            
+            // If middleware returns null, request was blocked (maintenance page shown)
+            if ($result === null) {
+                exit;
+            }
+        } catch (\Exception $e) {
+            // If maintenance check fails, continue (fail-open)
+            error_log('Maintenance middleware error: ' . $e->getMessage());
+        }
+
+        // Session Timeout - check for authenticated users
+        try {
+            $sessionMiddleware = $this->container->make(\Shared\Infrastructure\Middleware\SessionTimeoutMiddleware::class);
+            $sessionMiddleware->handle($this->request, function ($request) {
+                return true; // Continue
+            });
+        } catch (\Exception $e) {
+            // If session check fails, continue (fail-open)
+            error_log('Session timeout middleware error: ' . $e->getMessage());
+        }
+    }
 }

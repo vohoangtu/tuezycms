@@ -1,3 +1,19 @@
+<?php
+use Modules\User\Application\Service\AuthService;
+use Core\Container\ServiceContainer;
+
+// Get AuthService to check Super Admin
+$container = ServiceContainer::getInstance();
+$authService = $container->make(AuthService::class);
+$isSuperAdmin = false;
+
+try {
+    $isSuperAdmin = $authService->isSuperAdmin();
+} catch (\Exception $e) {
+    // If error, default to false
+    $isSuperAdmin = false;
+}
+?>
 <!-- ========== App Menu ========== -->
 <div class="app-menu navbar-menu">
     <!-- LOGO -->
@@ -94,21 +110,40 @@
 
                 <li class="nav-item">
                     <a class="nav-link menu-link" href="/admin/users">
-                        <i class="ri-user-line"></i> <span>Users</span>
+                        <i class="ri-user-line"></i> <span>Người dùng</span>
                     </a>
                 </li>
 
                 <li class="nav-item">
                     <a class="nav-link menu-link" href="/admin/roles">
-                        <i class="ri-shield-user-line"></i> <span>Roles & Permissions</span>
+                        <i class="ri-shield-user-line"></i> <span>Vai trò & Quyền</span>
                     </a>
                 </li>
 
+                <!-- Configurations (Module - có thể tắt qua Modules) -->
                 <li class="nav-item">
-                    <a class="nav-link menu-link" href="/admin/settings">
-                        <i class="ri-settings-3-line"></i> <span>Cài đặt</span>
+                    <a class="nav-link menu-link" href="/admin/configurations">
+                        <i class="ri-list-settings-line"></i> <span>Configurations</span>
                     </a>
                 </li>
+
+                <?php if ($isSuperAdmin): ?>
+                <!-- Modules (Super Admin Only) -->
+                <li class="nav-item">
+                    <a class="nav-link menu-link" href="/admin/modules">
+                        <i class="ri-puzzle-line"></i> <span>Modules</span>
+                        <span class="badge bg-danger-subtle text-danger badge-border ms-1">Super Admin</span>
+                    </a>
+                </li>
+
+                <!-- Settings (Super Admin Only) -->
+                <li class="nav-item">
+                    <a class="nav-link menu-link" href="/admin/settings">
+                        <i class="ri-settings-3-line"></i> <span>Settings</span>
+                        <span class="badge bg-danger-subtle text-danger badge-border ms-1">Super Admin</span>
+                    </a>
+                </li>
+                <?php endif; ?>
 
             </ul>
         </div>

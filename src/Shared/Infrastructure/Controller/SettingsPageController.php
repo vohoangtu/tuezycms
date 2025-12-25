@@ -1,4 +1,8 @@
 <?php
+/**
+ * Settings Page Controller
+ * Super Admin only - System settings
+ */
 
 declare(strict_types=1);
 
@@ -9,11 +13,6 @@ use Shared\Infrastructure\Http\Request;
 use Shared\Infrastructure\Http\Response;
 use Shared\Infrastructure\Security\KeyValidator;
 
-/**
- * Settings Page Controller
- * 
- * Handles settings page rendering
- */
 class SettingsPageController extends BaseController
 {
     public function __construct(
@@ -26,10 +25,14 @@ class SettingsPageController extends BaseController
     }
 
     /**
-     * Show settings page
+     * Show settings page (Super Admin only)
      */
     public function index(): void
     {
-        $this->render('admin/settings');
+        $user = $this->authService->getCurrentUser();
+        
+        $this->render('admin/settings-page', [
+            'user' => $user
+        ]);
     }
 }

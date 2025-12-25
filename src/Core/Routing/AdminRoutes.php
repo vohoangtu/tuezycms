@@ -50,12 +50,22 @@ class AdminRoutes
             $registry->get('/orders', [OrderPageController::class, 'index'])->name('admin.orders');
             $registry->get('/promotions', [PromotionPageController::class, 'index'])->name('admin.promotions');
             $registry->get('/media', [MediaPageController::class, 'index'])->name('admin.media');
-            $registry->get('/settings', [SettingsPageController::class, 'index'])->name('admin.settings');
             
             // RBAC Page routes
             $registry->get('/roles', [RolePageController::class, 'index'])->name('admin.roles');
             $registry->get('/users', [UserPageController::class, 'index'])->name('admin.users');
-            $registry->get('/modules', [\Modules\Module\Presentation\Controller\ModulePageController::class, 'index'])->name('admin.modules');
+            
+            // Configurations Page (Module - có thể tắt qua Modules)
+            $registry->get('/configurations', [\Shared\Infrastructure\Controller\ConfigurationsPageController::class, 'index'])
+                ->name('admin.configurations');
+            
+            // Super Admin only routes
+            $registry->get('/modules', [\Modules\Module\Presentation\Controller\ModulePageController::class, 'index'])
+                ->name('admin.modules')
+                ->middleware('super_admin');
+            $registry->get('/settings', [SettingsPageController::class, 'index'])
+                ->name('admin.settings')
+                ->middleware('super_admin');
 
             // API routes
             $registry->group(['prefix' => '/api'], function (RouteRegistry $registry) {
@@ -88,9 +98,44 @@ class AdminRoutes
                 $registry->post('/media', [MediaController::class, 'store'])->name('api.media.store');
                 $registry->delete('/media', [MediaController::class, 'delete'])->name('api.media.delete');
 
-                // Settings API
-                $registry->get('/settings', [SettingsController::class, 'index'])->name('api.settings.index');
-                $registry->post('/settings', [SettingsController::class, 'store'])->name('api.settings.store');
+                // Settings API (Super Admin only)
+                $registry->get('/settings', [SettingsController::class, 'index'])
+                    ->name('api.settings.index')
+                    ->middleware('super_admin');
+                $registry->post('/settings', [SettingsController::class, 'store'])
+                    ->name('api.settings.store')
+                    ->middleware('super_admin');
+                
+                // Configurations API (Super Admin only)
+                $registry->get('/configurations', [SettingsController::class, 'index'])
+                    ->name('api.configurations.index')
+                    ->middleware('super_admin');
+                $registry->get('/configurations/{id:\\d+}', [SettingsController::class, 'show'])
+                    ->name('api.configurations.show')
+                    ->middleware('super_admin');
+                $registry->put('/configurations/{id:\\d+}/toggle', [SettingsController::class, 'toggle'])
+                    ->name('api.configurations.toggle')
+                    ->middleware('super_admin');
+                $registry->put('/configurations/{id:\\d+}/config', [SettingsController::class, 'updateConfig'])
+                    ->name('api.configurations.config')
+                    ->middleware('super_admin');
+                $registry->post('/configurations', [SettingsController::class, 'store'])
+                    ->name('api.configurations.store')
+                    ->middleware('super_admin');
+                
+                // Cache API
+                $registry->post('/cache/clear', [\Shared\Infrastructure\Controller\CacheController::class, 'clear'])
+                    ->name('api.cache.clear');
+                $registry->get('/cache/info', [\Shared\Infrastructure\Controller\CacheController::class, 'info'])
+                    ->name('api.cache.info');
+                
+                // Backup API
+                $registry->post('/backup/create', [\Shared\Infrastructure\Controller\BackupController::class, 'create'])
+                    ->name('api.backup.create');
+                $registry->get('/backup/list', [\Shared\Infrastructure\Controller\BackupController::class, 'index'])
+                    ->name('api.backup.list');
+                $registry->delete('/backup/delete', [\Shared\Infrastructure\Controller\BackupController::class, 'delete'])
+                    ->name('api.backup.delete');
                 
                 // ========== RBAC API Routes ==========
                 
@@ -108,12 +153,22 @@ class AdminRoutes
                 $registry->get('/permissions/by-resource', [PermissionController::class, 'byResource'])->name('api.permissions.by-resource');
                 $registry->get('/permissions/{id:\\d+}', [PermissionController::class, 'show'])->name('api.permissions.show');
 
-                // Module Management API
-                $registry->get('/modules', [\Modules\Module\Presentation\Controller\ModuleController::class, 'index'])->name('api.modules.index');
-                $registry->get('/modules/by-category', [\Modules\Module\Presentation\Controller\ModuleController::class, 'byCategory'])->name('api.modules.by-category');
-                $registry->get('/modules/{id:\\d+}', [\Modules\Module\Presentation\Controller\ModuleController::class, 'show'])->name('api.modules.show');
-                $registry->put('/modules/{id:\\d+}/toggle', [\Modules\Module\Presentation\Controller\ModuleController::class, 'toggle'])->name('api.modules.toggle');
-                $registry->put('/modules/{id:\\d+}/config', [\Modules\Module\Presentation\Controller\ModuleController::class, 'updateConfig'])->name('api.modules.config');
+                // Module Management API (Super Admin only)
+                $registry->get('/modules', [\Modules\Module\Presentation\Controller\ModuleController::class, 'index'])
+                    ->name('api.modules.index')
+                    ->middleware('super_admin');
+                $registry->get('/modules/by-category', [\Modules\Module\Presentation\Controller\ModuleController::class, 'byCategory'])
+                    ->name('api.modules.by-category')
+                    ->middleware('super_admin');
+                $registry->get('/modules/{id:\\d+}', [\Modules\Module\Presentation\Controller\ModuleController::class, 'show'])
+                    ->name('api.modules.show')
+                    ->middleware('super_admin');
+                $registry->put('/modules/{id:\\d+}/toggle', [\Modules\Module\Presentation\Controller\ModuleController::class, 'toggle'])
+                    ->name('api.modules.toggle')
+                    ->middleware('super_admin');
+                $registry->put('/modules/{id:\\d+}/config', [\Modules\Module\Presentation\Controller\ModuleController::class, 'updateConfig'])
+                    ->name('api.modules.config')
+                    ->middleware('super_admin');
                 
                 // User CRUD API
                 $registry->get('/users', [UserController::class, 'index'])->name('api.users.index');

@@ -35,9 +35,7 @@ class AuthMiddleware
     public function requireAuth(): void
     {
         if (!$this->authService->isAuthenticated()) {
-            if (session_status() === PHP_SESSION_NONE) {
-                session_start();
-            }
+            \Shared\Infrastructure\Session\SessionManager::start();
             
             $request = $this->request ?? new Request();
             $_SESSION['redirect_after_login'] = $request->url();
