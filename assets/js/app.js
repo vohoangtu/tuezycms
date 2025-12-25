@@ -1030,7 +1030,7 @@ File: Main Js File
 						if (!emptyNotificationElem) {
 							elem.innerHTML += '<div class="empty-notification-elem">\
 							<div class="w-25 w-sm-50 pt-3 mx-auto">\
-								<img src="assets/images/svg/bell.svg" class="img-fluid" alt="user-pic">\
+								<img src="/assets/images/svg/bell.svg" class="img-fluid" alt="user-pic">\
 							</div>\
 							<div class="text-center pb-5 mt-2">\
 								<h6 class="fs-18 fw-semibold lh-base">Hey! You have no any notifications </h6>\
@@ -1909,7 +1909,7 @@ File: Main Js File
 					// Dispatch the resize event on the window object
 					document.documentElement.setAttribute("data-theme", x.value);
 					document.getElementById("body-img").style.display = (x.value === "galaxy") ? "block" : "none";
-					if (x.value === "galaxy"){
+					if (x.value === "galaxy") {
 						document.documentElement.setAttribute("data-sidebar", "dark");
 						document.documentElement.setAttribute("data-bs-theme", "dark");
 					} else {
@@ -2013,7 +2013,7 @@ File: Main Js File
 		// sidebarUserProfile
 		document.getElementById("sidebarUserProfile")?.addEventListener("click", function (event) {
 			(event.target.checked) ?
-				document.documentElement.setAttribute("data-sidebar-user-show", ""):
+				document.documentElement.setAttribute("data-sidebar-user-show", "") :
 				document.documentElement.removeAttribute("data-sidebar-user-show");
 		});
 	}

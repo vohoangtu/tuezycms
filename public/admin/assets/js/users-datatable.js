@@ -404,9 +404,35 @@ function bulkAssignRole() {
 async function confirmBulkAssignRole() {
     const roleId = document.getElementById('bulkRoleSelect').value;
 
-    // TODO: Implement bulk assign role API
-    showToast('Info', 'Bulk assign role feature coming soon', 'info');
-    bootstrap.Modal.getInstance(document.getElementById('bulkRoleModal')).hide();
+    if (!roleId) {
+        showToast('Error', 'Please select a role', 'warning');
+        return;
+    }
+
+    try {
+        const response = await fetch('/admin/api/users/bulk-assign-role', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_ids: Array.from(selectedUsers),
+                role_id: parseInt(roleId)
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('bulkRoleModal')).hide();
+            selectedUsers.clear();
+            loadUsers();
+            loadStats();
+            showToast('Success', data.message, 'success');
+        } else {
+            showToast('Error', data.message, 'danger');
+        }
+    } catch (error) {
+        showToast('Error', 'Network error', 'danger');
+    }
 }
 
 // Bulk Reset Password
@@ -521,38 +547,127 @@ async function deleteUser(id) {
     }
 }
 
-function viewUserDetails(id) {
-    // TODO: Implement user details view
-    showToast('Info', 'User details view coming soon', 'info');
+async function viewUserDetails(id) {
+    try {
+        const response = await fetch(`/admin/api/users/${id}/details`);
+        const data = await response.json();
+
+        if (data.success) {
+            const user = data.data;
+
+            // Open modal with user details
+            document.getElementById('detailsUserEmail').textContent = user.email;
+            document.getElementById('detailsUserName').textContent = user.full_name || '-';
+            document.getElementById('detailsUserStatus').innerHTML = user.is_active
+                ? '<span class="badge bg-success"><i class="ri-checkbox-circle-line me-1"></i>Active</span>'
+                : '<span class="badge bg-danger"><i class="ri-close-circle-line me-1"></i>Inactive</span>';
+            document.getElementById('detailsUserRoles').innerHTML = user.roles.length > 0
+                ? user.roles.map(r => `<span class="badge bg-primary me-1">${r.display_name}</span>`).join('')
+                : '<span class="text-muted">No roles assigned</span>';
+            document.getElementById('detailsUserCreated').textContent = user.stats.created_at || '-';
+            document.getElementById('detailsUserLastLogin').textContent = user.stats.last_login || 'Never';
+
+            new bootstrap.Modal(document.getElementById('userDetailsModal')).show();
+        } else {
+            showToast('Error', data.message, 'danger');
+        }
+    } catch (error) {
+        showToast('Error', 'Error loading user details', 'danger');
+    }
 }
 
-function resetUserPassword(id) {
-    if (!confirm('Reset password for this user?')) return;
+async function resetUserPassword(id) {
+    if (!confirm('Reset password for this user? A new random password will be generated.')) return;
 
-    // TODO: Implement reset password API
-    showToast('Info', 'Reset password feature coming soon', 'info');
+    try {
+        const response = await fetch(`/admin/api/users/${id}/reset-password`, {
+            method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Show the new password to admin
+            const message = `Password reset successfully!\n\nNew password: ${data.new_password}\n\nPlease save this password and share it securely with the user.`;
+            showToast('Success', message, 'success');
+        } else {
+            showToast('Error', data.message, 'danger');
+        }
+    } catch (error) {
+        showToast('Error', 'Network error', 'danger');
+    }
 }
 
-function sendEmailToUser(id) {
-    // TODO: Implement send email feature
-    showToast('Info', 'Send email feature coming soon', 'info');
+async function sendEmailToUser(id) {
+    try {
+        // Get user details first
+        const response = await fetch(`/admin/api/users/${id}`);
+        const data = await response.json();
+
+        if (data.success) {
+            // Populate modal
+            document.getElementById('emailUserId').value = id;
+            document.getElementById('emailUserEmail').textContent = data.data.email;
+            document.getElementById('emailSubject').value = '';
+            document.getElementById('emailMessage').value = '';
+
+            new bootstrap.Modal(document.getElementById('sendEmailModal')).show();
+        }
+    } catch (error) {
+        showToast('Error', 'Error loading user', 'danger');
+    }
 }
 
 // ========== Export ==========
 
 function exportData(type) {
-    let userIds = [];
+    let url = '/admin/api/users/export?type=' + type;
 
     if (type === 'selected') {
         if (selectedUsers.size === 0) {
             showToast('Warning', 'No users selected', 'warning');
             return;
         }
-        userIds = Array.from(selectedUsers);
+        url += '&amp;ids=' + Array.from(selectedUsers).join(',');
+    } else if (type === 'filtered') {
+        const params = new URLSearchParams(filters);
+        url += '&amp;' + params.toString();
     }
 
-    // TODO: Implement export functionality
-    showToast('Info', `Export ${type} feature coming soon`, 'info');
+    // Trigger download
+    window.location.href = url;
+    showToast('Info', 'Exporting users to CSV...', 'info');
+}
+
+// Send Email
+async function confirmSendEmail() {
+    const userId = document.getElementById('emailUserId').value;
+    const subject = document.getElementById('emailSubject').value;
+    const message = document.getElementById('emailMessage').value;
+
+    if (!subject || !message) {
+        showToast('Error', 'Subject and message are required', 'warning');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/admin/api/users/${userId}/send-email`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ subject, message })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('sendEmailModal')).hide();
+            showToast('Success', data.message, 'success');
+        } else {
+            showToast('Error', data.message, 'danger');
+        }
+    } catch (error) {
+        showToast('Error', 'Network error', 'danger');
+    }
 }
 
 // ========== Utilities ==========

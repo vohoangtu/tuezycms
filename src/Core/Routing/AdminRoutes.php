@@ -28,9 +28,6 @@ use Modules\Authorization\Presentation\Controller\PermissionController;
 use Modules\User\Presentation\Controller\UserController;
 use Modules\User\Presentation\Controller\UserPageController;
 
-// Legacy - will be moved to Core
-use Shared\Infrastructure\Controller\ModuleController;
-
 /**
  * Admin routes definition
  */
@@ -58,6 +55,7 @@ class AdminRoutes
             // RBAC Page routes
             $registry->get('/roles', [RolePageController::class, 'index'])->name('admin.roles');
             $registry->get('/users', [UserPageController::class, 'index'])->name('admin.users');
+            $registry->get('/modules', [\Modules\Module\Presentation\Controller\ModulePageController::class, 'index'])->name('admin.modules');
 
             // API routes
             $registry->group(['prefix' => '/api'], function (RouteRegistry $registry) {
@@ -93,10 +91,6 @@ class AdminRoutes
                 // Settings API
                 $registry->get('/settings', [SettingsController::class, 'index'])->name('api.settings.index');
                 $registry->post('/settings', [SettingsController::class, 'store'])->name('api.settings.store');
-
-                // Modules API
-                $registry->get('/modules', [ModuleController::class, 'index'])->name('api.modules.index');
-                $registry->post('/modules', [ModuleController::class, 'store'])->name('api.modules.store');
                 
                 // ========== RBAC API Routes ==========
                 
@@ -113,6 +107,13 @@ class AdminRoutes
                 $registry->get('/permissions', [PermissionController::class, 'index'])->name('api.permissions.index');
                 $registry->get('/permissions/by-resource', [PermissionController::class, 'byResource'])->name('api.permissions.by-resource');
                 $registry->get('/permissions/{id:\\d+}', [PermissionController::class, 'show'])->name('api.permissions.show');
+
+                // Module Management API
+                $registry->get('/modules', [\Modules\Module\Presentation\Controller\ModuleController::class, 'index'])->name('api.modules.index');
+                $registry->get('/modules/by-category', [\Modules\Module\Presentation\Controller\ModuleController::class, 'byCategory'])->name('api.modules.by-category');
+                $registry->get('/modules/{id:\\d+}', [\Modules\Module\Presentation\Controller\ModuleController::class, 'show'])->name('api.modules.show');
+                $registry->put('/modules/{id:\\d+}/toggle', [\Modules\Module\Presentation\Controller\ModuleController::class, 'toggle'])->name('api.modules.toggle');
+                $registry->put('/modules/{id:\\d+}/config', [\Modules\Module\Presentation\Controller\ModuleController::class, 'updateConfig'])->name('api.modules.config');
                 
                 // User CRUD API
                 $registry->get('/users', [UserController::class, 'index'])->name('api.users.index');

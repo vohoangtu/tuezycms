@@ -165,6 +165,37 @@ class UserRepository
     }
 
     /**
+     * Delete a user
+     *
+     * @param int $id
+     * @return void
+     */
+    public function delete(int $id): void
+    {
+        DB::transaction(function() use ($id) {
+            // Delete user roles first
+            DB::table('user_roles')
+                ->where('user_id', '=', $id)
+                ->delete();
+            
+            // Delete user
+            DB::table('users')
+                ->where('id', '=', $id)
+                ->delete();
+        });
+        
+        // Clear cache
+        Cache::delete("user:{$id}");
+        Cache::delete("user:email:*"); // Clear all email-based cache
+        Cache::delete('users:all');
+        Cache::delete("user:{$id}:roles");
+        Cache::delete("user:{$id}:permissions");
+        
+        // Dispatch event
+        event(new UserDeletedEvent($id));
+    }
+
+    /**
      * Find all users
      *
      * @return User[]
@@ -181,5 +212,3 @@ class UserRepository
         return $users;
     }
 }
-
-

@@ -208,36 +208,38 @@ $roles = $pageData['roles'] ?? [];
                 </div>
                 
                 <!-- Table -->
-                <div class="table-responsive table-card">
-                    <table class="table align-middle table-nowrap" id="usersTable">
-                        <thead class="table-light">
-                            <tr>
-                                <th scope="col" style="width: 50px;">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="selectAll">
-                                    </div>
-                                </th>
-                                <th class="sort" data-sort="id" style="cursor: pointer;">ID</th>
-                                <th class="sort" data-sort="email" style="cursor: pointer;">User</th>
-                                <th>Roles</th>
-                                <th class="sort" data-sort="is_active" style="cursor: pointer;">Status</th>
-                                <th class="sort" data-sort="created_at" style="cursor: pointer;">Created Date</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody class="list form-check-all" id="usersTableBody">
-                            <tr>
-                                <td colspan="7" class="text-center">
-                                    <div class="py-4">
-                                        <div class="spinner-border text-primary" role="status">
-                                            <span class="sr-only">Loading...</span>
+                <div class="table-card" style="overflow: visible;">
+                    <div style="overflow-x: auto;">
+                        <table class="table align-middle table-nowrap" id="usersTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th scope="col" style="width: 50px;">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="selectAll">
                                         </div>
-                                        <p class="text-muted mt-2">Loading users...</p>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                                    </th>
+                                    <th class="sort" data-sort="id" style="cursor: pointer;">ID</th>
+                                    <th class="sort" data-sort="email" style="cursor: pointer;">User</th>
+                                    <th>Roles</th>
+                                    <th class="sort" data-sort="is_active" style="cursor: pointer;">Status</th>
+                                    <th class="sort" data-sort="created_at" style="cursor: pointer;">Created Date</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="list form-check-all" id="usersTableBody">
+                                <tr>
+                                    <td colspan="7" class="text-center">
+                                        <div class="py-4">
+                                            <div class="spinner-border text-primary" role="status">
+                                                <span class="sr-only">Loading...</span>
+                                            </div>
+                                            <p class="text-muted mt-2">Loading users...</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
                 
                 <!-- Pagination -->
@@ -333,10 +335,93 @@ $roles = $pageData['roles'] ?? [];
     </div>
 </div>
 
+<!-- User Details Modal -->
+<div class="modal fade" id="userDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-light p-3">
+                <h5 class="modal-title"><i class="ri-user-line me-2"></i>User Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-borderless mb-0">
+                        <tbody>
+                            <tr>
+                                <th class="ps-0" width="150">Email:</th>
+                                <td id="detailsUserEmail" class="text-muted">-</td>
+                            </tr>
+                            <tr>
+                                <th class="ps-0">Full Name:</th>
+                                <td id="detailsUserName" class="text-muted">-</td>
+                            </tr>
+                            <tr>
+                                <th class="ps-0">Status:</th>
+                                <td id="detailsUserStatus">-</td>
+                            </tr>
+                            <tr>
+                                <th class="ps-0">Roles:</th>
+                                <td id="detailsUserRoles">-</td>
+                            </tr>
+                            <tr>
+                                <th class="ps-0">Created At:</th>
+                                <td id="detailsUserCreated" class="text-muted">-</td>
+                            </tr>
+                            <tr>
+                                <th class="ps-0">Last Login:</th>
+                                <td id="detailsUserLastLogin" class="text-muted">-</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Send Email Modal -->
+<div class="modal fade" id="sendEmailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-light p-3">
+                <h5 class="modal-title"><i class="ri-mail-send-line me-2"></i>Send Email</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="emailUserId">
+                
+                <div class="alert alert-info mb-3">
+                    <i class="ri-information-line me-2"></i>
+                    Sending email to: <strong id="emailUserEmail">-</strong>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="emailSubject" class="form-label">Subject <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="emailSubject" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="emailMessage" class="form-label">Message <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="emailMessage" rows="6" required></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="confirmSendEmail()">
+                    <i class="ri-send-plane-fill me-1"></i> Send Email
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="/public/admin/assets/js/users-datatable.js"></script>
 
 <script>
-// Override render function
+// Override render function for custom template
 const originalRenderTable = renderTable;
 renderTable = function(users) {
     const tbody = document.getElementById('usersTableBody');
@@ -417,90 +502,4 @@ renderTable = function(users) {
         </tr>
     `).join('');
 };
-
-// API functions
-async function confirmBulkAssignRole() {
-    const roleId = document.getElementById('bulkRoleSelect').value;
-    
-    if (!roleId) {
-        alert('Please select a role');
-        return;
-    }
-    
-    try {
-        const response = await fetch('/admin/api/users/bulk-assign-role', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                user_ids: Array.from(selectedUsers),
-                role_id: parseInt(roleId)
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            bootstrap.Modal.getInstance(document.getElementById('bulkRoleModal')).hide();
-            selectedUsers.clear();
-            loadUsers();
-            alert(data.message);
-        } else {
-            alert('Error: ' + data.message);
-        }
-    } catch (error) {
-        alert('Network error');
-    }
-}
-
-async function viewUserDetails(id) {
-    try {
-        const response = await fetch(`/admin/api/users/${id}/details`);
-        const data = await response.json();
-        
-        if (data.success) {
-            const user = data.data;
-            const roles = user.roles.map(r => r.display_name).join(', ') || 'No roles';
-            alert(`User Details\n\nEmail: ${user.email}\nFull Name: ${user.full_name || '-'}\nStatus: ${user.is_active ? 'Active' : 'Inactive'}\nRoles: ${roles}\nCreated: ${user.stats.created_at || '-'}\nLast Login: ${user.stats.last_login || 'Never'}`);
-        }
-    } catch (error) {
-        alert('Error loading user details');
-    }
-}
-
-async function resetUserPassword(id) {
-    if (!confirm('Reset password for this user?')) return;
-    
-    try {
-        const response = await fetch(`/admin/api/users/${id}/reset-password`, {
-            method: 'POST'
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            alert(`Password reset successfully!\n\nNew password: ${data.new_password}\n\nPlease save this password.`);
-        } else {
-            alert('Error: ' + data.message);
-        }
-    } catch (error) {
-        alert('Network error');
-    }
-}
-
-function exportData(type) {
-    let url = '/admin/api/users/export?type=' + type;
-    
-    if (type === 'selected') {
-        if (selectedUsers.size === 0) {
-            alert('No users selected');
-            return;
-        }
-        url += '&ids=' + Array.from(selectedUsers).join(',');
-    } else if (type === 'filtered') {
-        const params = new URLSearchParams(filters);
-        url += '&' + params.toString();
-    }
-    
-    window.location.href = url;
-}
 </script>

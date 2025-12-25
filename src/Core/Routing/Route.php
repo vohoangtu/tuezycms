@@ -143,8 +143,19 @@ class Route
     {
         $pattern = $this->convertPathToRegex($this->path);
         if (preg_match($pattern, $path, $matches)) {
-            array_shift($matches); // Remove full match
-            return $matches;
+            // Remove full match
+            array_shift($matches);
+            
+            // Filter to only numeric keys (preg_match with named groups returns duplicates)
+            // We only want the numeric-indexed values for call_user_func_array
+            $numericMatches = [];
+            foreach ($matches as $key => $value) {
+                if (is_int($key)) {
+                    $numericMatches[] = $value;
+                }
+            }
+            
+            return $numericMatches;
         }
         return [];
     }
@@ -160,13 +171,14 @@ class Route
         // Escape special regex characters except {}
         $pattern = preg_quote($path, '/');
         
-        // Replace {param} with named capture groups
-        $pattern = preg_replace('/\\{(\w+)(?::(\w+))?\\}/', '(?P<$1>[^/]+)', $pattern);
+        // CRITICAL FIX: Replace {param:\\d+} BEFORE generic {param} pattern
+        // After preg_quote, "/roles/{id:\\d+}" becomes "/roles/\{id\:\\d\+\}"
+        // In the replacement regex, we need to match these escaped characters
+        $pattern = preg_replace('/\\\\{(\w+)\\\\:\\\\\\\\d\\\\\\+\\\\}/', '(?P<$1>\\d+)', $pattern);
         
-        // Replace {param:\d+} with digit pattern
-        $pattern = preg_replace('/\\{(\w+):\\\d\+\\}/', '(?P<$1>\d+)', $pattern);
+        // Then replace generic {param} patterns  
+        $pattern = preg_replace('/\\\\{(\w+)\\\\}/', '(?P<$1>[^/]+)', $pattern);
         
         return '/^' . $pattern . '$/';
     }
 }
-
