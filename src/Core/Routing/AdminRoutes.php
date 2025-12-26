@@ -28,6 +28,9 @@ use Modules\Authorization\Presentation\Controller\PermissionController;
 use Modules\User\Presentation\Controller\UserController;
 use Modules\User\Presentation\Controller\UserPageController;
 
+use Modules\Security\Presentation\Controller\SecurityController;
+use Modules\Security\Presentation\Controller\SecurityPageController;
+
 /**
  * Admin routes definition
  */
@@ -56,8 +59,17 @@ class AdminRoutes
             $registry->get('/users', [UserPageController::class, 'index'])->name('admin.users');
             
             // Configurations Page (Module - có thể tắt qua Modules)
+            // Configurations Page (Module - có thể tắt qua Modules)
             $registry->get('/configurations', [\Shared\Infrastructure\Controller\ConfigurationsPageController::class, 'index'])
                 ->name('admin.configurations');
+            
+            // Security Pages
+            $registry->get('/security', [SecurityPageController::class, 'index'])->name('admin.security');
+            $registry->get('/security/logs', [SecurityPageController::class, 'logs'])->name('admin.security.logs');
+            $registry->get('/security/ips', [SecurityPageController::class, 'ips'])->name('admin.security.ips');
+            $registry->get('/security/integrity', [SecurityPageController::class, 'integrity'])->name('admin.security.integrity');
+            $registry->get('/security/tamper', [SecurityPageController::class, 'tamper'])->name('admin.security.tamper');
+            $registry->get('/security/malware', [SecurityPageController::class, 'malware'])->name('admin.security.malware');
             
             // Super Admin only routes
             $registry->get('/modules', [\Modules\Module\Presentation\Controller\ModulePageController::class, 'index'])
@@ -189,7 +201,24 @@ class AdminRoutes
                 $registry->post('/users/bulk-assign-role', [UserController::class, 'bulkAssignRole'])->name('api.users.bulk-assign-role');
                 
                 // Export
+                // Export
                 $registry->get('/users/export', [UserController::class, 'exportCsv'])->name('api.users.export');
+ 
+                // Security API
+                $registry->get('/security/logs', [SecurityController::class, 'index'])->name('api.security.logs.index');
+                $registry->get('/security/ips', [SecurityController::class, 'ips'])->name('api.security.ips.index');
+                $registry->post('/security/ips', [SecurityController::class, 'blockIp'])->name('api.security.ips.block');
+                $registry->delete('/security/ips/{ip:[\d\.]+}', [SecurityController::class, 'unblockIp'])->name('api.security.ips.unblock');
+                $registry->get('/security/integrity', [SecurityController::class, 'checkIntegrity'])->name('api.security.integrity');
+                $registry->post('/security/integrity/scan', [SecurityController::class, 'scanIntegrity'])->name('api.security.integrity.scan');
+                $registry->post('/security/integrity/approve', [SecurityController::class, 'approveIntegrity'])->name('api.security.integrity.approve');
+                
+                // Tamper Tools
+                $registry->post('/security/tamper/keygen', [SecurityController::class, 'generateKeys'])->name('api.security.tamper.keygen');
+                $registry->post('/security/tamper/sign', [SecurityController::class, 'signSystem'])->name('api.security.tamper.sign');
+                
+                // Malware Scanner
+                $registry->post('/security/malware/scan', [SecurityController::class, 'scanMalware'])->name('api.security.malware.scan');
             });
         });
     }

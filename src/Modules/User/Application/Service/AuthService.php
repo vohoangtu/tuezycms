@@ -17,13 +17,16 @@ class AuthService
     
     private UserRepository $userRepository;
     private ?AuthorizationService $authorizationService = null;
+    private ?\Modules\Security\Application\Service\SecurityService $securityService = null;
 
     public function __construct(
         UserRepository $userRepository,
-        ?AuthorizationService $authorizationService = null
+        ?AuthorizationService $authorizationService = null,
+        ?\Modules\Security\Application\Service\SecurityService $securityService = null
     ) {
         $this->userRepository = $userRepository;
         $this->authorizationService = $authorizationService;
+        $this->securityService = $securityService;
     }
 
     /**
@@ -31,18 +34,63 @@ class AuthService
      */
     public function authenticate(string $email, string $password): ?User
     {
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+
+        if ($this->securityService) {
+            // Check if IP is blocked
+            if ($this->securityService->isIpBlocked($ip)) {
+                throw new ForbiddenException('Access denied. Your IP is blocked.');
+            }
+
+            // Check login throttling (5 attempts in 15 minutes)
+            $failures = $this->securityService->countRecentAuthFailures($ip, 15);
+            if ($failures >= 5) {
+                // Log lockout event (if not already logged?)
+                // Actually if we just throw, we don't increment failure again?
+                // The failures are from PAST logs.
+                throw new \RuntimeException('Too many login attempts. Please try again in 15 minutes.');
+            }
+        }
+
         $user = $this->userRepository->findByEmail($email);
         
+        $loginFailed = function($userId = null) use ($ip, $email) {
+            if ($this->securityService) {
+                $this->securityService->log(
+                    'auth.login_fail',
+                    $ip,
+                    "Login failed for email: $email",
+                    $userId,
+                    $_SERVER['HTTP_USER_AGENT'] ?? null
+                );
+            }
+        };
+
         if ($user === null) {
+            $loginFailed();
             return null;
         }
 
         if (!$user->isActive()) {
+            $loginFailed($user->getId());
+            // Log specifically for inactive?
             return null;
         }
 
         if (!password_verify($password, $user->getPasswordHash())) {
+            $loginFailed($user->getId());
             return null;
+        }
+
+        // Authentication successful
+        if ($this->securityService) {
+            $this->securityService->log(
+                'auth.login_success',
+                $ip,
+                "User logged in",
+                $user->getId(),
+                $_SERVER['HTTP_USER_AGENT'] ?? null
+            );
         }
 
         // Update last login
@@ -83,6 +131,16 @@ class AuthService
         $passwordHash = password_hash($newPassword, PASSWORD_DEFAULT);
         $user->setPasswordHash($passwordHash);
         $this->userRepository->save($user);
+
+        if ($this->securityService) {
+            $this->securityService->log(
+                'user.password_change',
+                $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0',
+                "Password changed for user ID: {$user->getId()}",
+                $user->getId(),
+                $_SERVER['HTTP_USER_AGENT'] ?? null
+            );
+        }
     }
 
     /**

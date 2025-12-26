@@ -34,10 +34,34 @@ set_exception_handler(function (\Throwable $e) use ($exceptionHandler) {
 });
 
 // Validate source code integrity
+// Validate source code integrity (KeyValidator)
 $keyValidator = $container->make(KeyValidator::class);
 if (!$keyValidator->validateSourceIntegrity()) {
-    $response->status(403)->send('Source code integrity check failed. Website disabled.');
+    $response->status(403)->send('Source code integrity check failed (Key). Website disabled.');
 }
+
+// Digital Signature Verification (Tamper Protection)
+// Only run if signature exists (Anti-Tamper Mode)
+if (file_exists(__DIR__ . '/../integrity.sig') && file_exists(__DIR__ . '/../integrity.pub')) {
+    $protectionService = new \Modules\Security\Infrastructure\Service\TamperProtectionService();
+    $pubKey = file_get_contents(__DIR__ . '/../integrity.pub');
+    $signature = file_get_contents(__DIR__ . '/../integrity.sig');
+    
+    if (!$protectionService->verifySource($pubKey, $signature)) {
+        http_response_code(503);
+        die('<h1>System Error</h1><p>Source code integrity violation. The system hash does not match the digital signature.</p><p>Please restore the original source code or contact the vendor.</p>');
+    }
+}
+
+// Runtime Critical Integrity Check (Middleware-style execution)
+// This uses manifest.json to quickly check critical core files
+$fileIntegrityScanner = $container->make(\Modules\Security\Application\Service\FileIntegrityScanner::class);
+$criticalIntegrityMiddleware = new \Modules\Security\Application\Middleware\CriticalIntegrityMiddleware($fileIntegrityScanner);
+
+// We execute handle() manually since we are not in a middleware stack here
+$criticalIntegrityMiddleware->handle($request, $response, function($req, $res) {
+    // Continue booting...
+});
 
 // Initialize router and translator
 // Note: Router is deprecated for matching but used for Locale detection in Controllers

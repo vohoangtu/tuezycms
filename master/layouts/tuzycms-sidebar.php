@@ -120,6 +120,12 @@ try {
                     </a>
                 </li>
 
+                <li class="nav-item">
+                    <a class="nav-link menu-link" href="/admin/security">
+                        <i class="ri-shield-check-line"></i> <span>Bảo mật</span>
+                    </a>
+                </li>
+
                 <!-- Configurations (Module - có thể tắt qua Modules) -->
                 <li class="nav-item">
                     <a class="nav-link menu-link" href="/admin/configurations">

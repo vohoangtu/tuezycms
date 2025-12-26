@@ -63,6 +63,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         ]);
         exit;
     }
+
+    // --- Tamper Protection Actions ---
+
+    if ($action === 'generate_tamper_keys') {
+        try {
+            $service = new \Modules\Security\Infrastructure\Service\TamperProtectionService();
+            $keys = $service->generateKeys();
+
+            // Save to storage
+            $storageKeys = __DIR__ . '/../../storage/security/keys';
+            if (!is_dir($storageKeys)) {
+                mkdir($storageKeys, 0700, true);
+            }
+            file_put_contents($storageKeys . '/private.pem', $keys['private']);
+            file_put_contents($storageKeys . '/public.pem', $keys['public']);
+
+            echo json_encode(['success' => true, 'message' => 'New Tamper Protection Keys Generated']);
+        } catch (Throwable $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit;
+    }
+
+    if ($action === 'sign_system') {
+        try {
+            $service = new \Modules\Security\Infrastructure\Service\TamperProtectionService();
+            $keyPath = __DIR__ . '/../../storage/security/keys/private.pem';
+            
+            if (!file_exists($keyPath)) {
+                throw new Exception("Private Key not found. Please generate keys first.");
+            }
+
+            $privateKey = file_get_contents($keyPath);
+            $signature = $service->signSource($privateKey);
+
+            // Save Signature and Public Key for Runtime
+            file_put_contents(__DIR__ . '/../../integrity.sig', $signature);
+            copy(__DIR__ . '/../../storage/security/keys/public.pem', __DIR__ . '/../../integrity.pub');
+
+            echo json_encode(['success' => true, 'message' => 'System Signed Successfully! Anti-Tamper is Active.']);
+        } catch (Throwable $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit;
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -189,7 +234,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         </form>
 
         <form id="validateForm">
-            <button type="submit" name="action" value="validate_source">Kiểm tra tính toàn vẹn Source Code</button>
+            <button type="submit" name="action" value="validate_source">Kiểm tra tính toàn vẹn Source Code (Basic)</button>
+        </form>
+        
+        <hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">
+        
+        <h2>🛡️ Source Code Anti-Tamper</h2>
+        <p style="margin-bottom: 20px; color: #666; font-size: 14px;">
+            Bảo vệ mã nguồn chống chỉnh sửa bằng Chữ ký số. <br>
+            <strong>Cảnh báo:</strong> Khi ký (Sign), hệ thống sẽ bị khóa. Mọi thay đổi code sau đó sẽ gây lỗi 503.
+        </p>
+
+        <form id="tamperKeygenForm">
+            <button type="submit" name="action" value="generate_tamper_keys" style="background: #f1c40f; color: #333;">🔑 Tạo Key Bảo Mật (Reset Keys)</button>
+        </form>
+
+        <form id="tamperSignForm">
+            <button type="submit" name="action" value="sign_system" style="background: #e74c3c;">✍️ Ký System (Lock Code)</button>
         </form>
 
         <div id="result" class="result"></div>
@@ -239,37 +300,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             }
         });
 
-        document.getElementById('validateForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData();
-            formData.append('action', 'validate_source');
-            formData.append('password', document.getElementById('password').value);
-            
-            const result = document.getElementById('result');
-            result.style.display = 'none';
-            
-            try {
-                const response = await fetch('', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    result.className = 'result success';
-                    result.innerHTML = `<strong>✓ Thành công!</strong><br>${data.message}`;
-                } else {
-                    result.className = 'result error';
-                    result.innerHTML = `<strong>✗ Lỗi:</strong> ${data.message}`;
-                }
-                result.style.display = 'block';
-            } catch (error) {
-                result.className = 'result error';
-                result.innerHTML = `<strong>✗ Lỗi:</strong> ${error.message}`;
-                result.style.display = 'block';
-            }
         });
+
+        // Handler for new Tamper Forms
+        ['tamperKeygenForm', 'tamperSignForm'].forEach(formId => {
+            document.getElementById(formId).addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                // Confirmations
+                if (formId === 'tamperKeygenForm' && !confirm('Cảnh báo: Tạo Key mới sẽ làm mất Key cũ. Bạn sẽ không thể ký update cho các bản deploy cũ. Tiếp tục?')) return;
+                if (formId === 'tamperSignForm' && !confirm('Cảnh báo: Ký hệ thống sẽ KHÓA code hiện tại. Mọi thay đổi file PHP sau này sẽ gây lôi 503 nếu không ký lại. Tiếp tục?')) return;
+
+                const btn = e.target.querySelector('button');
+                const originalText = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = 'Đang xử lý...';
+
+                const formData = new FormData();
+                formData.append('action', e.submitter.value);
+                formData.append('password', document.getElementById('password').value);
+                
+                const result = document.getElementById('result');
+                result.style.display = 'none';
+                
+                try {
+                    const response = await fetch('', { method: 'POST', body: formData });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        result.className = 'result success';
+                        result.innerHTML = `<strong>✓ Thành công!</strong><br>${data.message}`;
+                    } else {
+                        result.className = 'result error';
+                        result.innerHTML = `<strong>✗ Lỗi:</strong> ${data.message}`;
+                    }
+                    result.style.display = 'block';
+                } catch (error) {
+                    result.className = 'result error';
+                    result.innerHTML = `<strong>✗ Lỗi:</strong> ${error.message}`;
+                    result.style.display = 'block';
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }
+            });
+        });
+    </script>
     </script>
 </body>
 </html>

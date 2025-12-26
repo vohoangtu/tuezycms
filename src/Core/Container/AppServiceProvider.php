@@ -118,21 +118,72 @@ class AppServiceProvider extends ServiceProvider
             );
         });
         
-        // Register AuthService with AuthorizationService
+        // Register Security Services
+        $container->singleton(\Modules\Security\Infrastructure\Repository\DatabaseSecurityLogRepository::class, \Modules\Security\Infrastructure\Repository\DatabaseSecurityLogRepository::class);
+        $container->singleton(\Modules\Security\Infrastructure\Repository\DatabaseBlockedIpRepository::class, \Modules\Security\Infrastructure\Repository\DatabaseBlockedIpRepository::class);
+        $container->singleton(\Modules\Security\Application\Service\FileIntegrityScanner::class, \Modules\Security\Application\Service\FileIntegrityScanner::class);
+
+        // ... log channels ...
+
+        $container->singleton(\Modules\Security\Application\Service\SecurityService::class, function($container) {
+            return new \Modules\Security\Application\Service\SecurityService(
+                $container->make(\Modules\Security\Infrastructure\Repository\DatabaseSecurityLogRepository::class),
+                $container->make(\Modules\Security\Infrastructure\Repository\DatabaseBlockedIpRepository::class),
+                $container->make(KeyValidator::class),
+                $container->make(\Modules\Security\Domain\Contract\LoggerInterface::class),
+                $container->make(\Modules\Security\Application\Service\FileIntegrityScanner::class)
+            );
+        });
+        $container->singleton(\Modules\Security\Infrastructure\Service\Channel\DatabaseChannel::class, function($container) {
+            return new \Modules\Security\Infrastructure\Service\Channel\DatabaseChannel(
+                $container->make(\Modules\Security\Infrastructure\Repository\DatabaseSecurityLogRepository::class)
+            );
+        });
+        
+        $container->singleton(\Modules\Security\Infrastructure\Service\Channel\FileChannel::class, function($container) {
+            // Use default storage path or configure via ENV
+            return new \Modules\Security\Infrastructure\Service\Channel\FileChannel();
+        });
+
+        // Register LogManager (LoggerInterface)
+        $container->singleton(\Modules\Security\Domain\Contract\LoggerInterface::class, function($container) {
+            $logManager = new \Modules\Security\Infrastructure\Service\LogManager();
+            
+            // Add Channels
+            $logManager->addChannel($container->make(\Modules\Security\Infrastructure\Service\Channel\DatabaseChannel::class));
+            $logManager->addChannel($container->make(\Modules\Security\Infrastructure\Service\Channel\FileChannel::class));
+            
+            return $logManager;
+        });
+
+        $container->singleton(\Modules\Security\Application\Service\SecurityService::class, function($container) {
+            return new \Modules\Security\Application\Service\SecurityService(
+                $container->make(\Modules\Security\Infrastructure\Repository\DatabaseSecurityLogRepository::class),
+                $container->make(\Modules\Security\Infrastructure\Repository\DatabaseBlockedIpRepository::class),
+                $container->make(KeyValidator::class),
+                $container->make(\Modules\Security\Domain\Contract\LoggerInterface::class),
+                $container->make(\Modules\Security\Application\Service\FileIntegrityScanner::class)
+            );
+        });
+
+        // Register AuthService with AuthorizationService and SecurityService
         $container->singleton(AuthService::class, function($container) {
             $authService = new AuthService(
                 $container->make(UserRepository::class),
-                $container->make(\Modules\Authorization\Application\Service\AuthorizationService::class)
+                $container->make(\Modules\Authorization\Application\Service\AuthorizationService::class),
+                $container->make(\Modules\Security\Application\Service\SecurityService::class)
             );
             return $authService;
         });
         
         $container->singleton(CartService::class, CartService::class);
+        $container->singleton(\Modules\Security\Application\Service\SecureUploadService::class, \Modules\Security\Application\Service\SecureUploadService::class);
         $container->singleton(MediaService::class, function($container) {
             return new MediaService(
                 $container->make(\Modules\Media\Infrastructure\Repository\MediaRepository::class),
                 $container->make(FileUploader::class),
-                $container->make(LocalFileStorage::class)
+                $container->make(LocalFileStorage::class),
+                $container->make(\Modules\Security\Application\Service\SecureUploadService::class)
             );
         });
         $container->singleton(ModuleService::class, ModuleService::class);

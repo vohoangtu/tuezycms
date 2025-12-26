@@ -1,6 +1,6 @@
 <?php
-$pageTitle = $pageData['pageTitle'] ?? 'User Management';
-$roles = $pageData['roles'] ?? [];
+// Variables are extracted in MasterLayoutRenderer
+// $roles and $pageTitle are available directly
 ?>
 
 <!-- Stats Cards -->
@@ -288,13 +288,19 @@ $roles = $pageData['roles'] ?? [];
                     </div>
                     
                     <div class="mb-3">
-                        <label for="userRoles" class="form-label">Roles</label>
-                        <select class="form-select" id="userRoles" multiple size="4">
+                        <label class="form-label">Roles</label>
+                        <div class="border rounded p-3" style="max-height: 150px; overflow-y: auto;">
                             <?php foreach ($roles as $role): ?>
-                                <option value="<?= $role->getId() ?>"><?= htmlspecialchars($role->getDisplayName()) ?></option>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input role-checkbox" type="checkbox" 
+                                           value="<?= $role->getId() ?>" 
+                                           id="role_new_<?= $role->getId() ?>">
+                                    <label class="form-check-label" for="role_new_<?= $role->getId() ?>">
+                                        <?= htmlspecialchars($role->getDisplayName()) ?>
+                                    </label>
+                                </div>
                             <?php endforeach; ?>
-                        </select>
-                        <div class="form-text">Hold Ctrl/Cmd to select multiple roles</div>
+                        </div>
                     </div>
                     
                     <div class="form-check form-switch">
@@ -503,3 +509,6 @@ renderTable = function(users) {
     `).join('');
 };
 </script>
+
+<!-- Page Specific JS -->
+<script src="/admin/assets/js/users-datatable.js?v=<?= time() ?>"></script>

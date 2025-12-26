@@ -14,15 +14,18 @@ class MediaService
     private MediaRepository $mediaRepository;
     private FileUploader $fileUploader;
     private LocalFileStorage $storage;
+    private \Modules\Security\Application\Service\SecureUploadService $secureUploadService;
 
     public function __construct(
         MediaRepository $mediaRepository,
         FileUploader $fileUploader,
-        LocalFileStorage $storage
+        LocalFileStorage $storage,
+        \Modules\Security\Application\Service\SecureUploadService $secureUploadService
     ) {
         $this->mediaRepository = $mediaRepository;
         $this->fileUploader = $fileUploader;
         $this->storage = $storage;
+        $this->secureUploadService = $secureUploadService;
     }
 
     /**
@@ -30,6 +33,9 @@ class MediaService
      */
     public function uploadFile(array $file, ?int $userId = null): MediaFile
     {
+        // Check security before processing
+        $this->secureUploadService->validate($file);
+
         $mediaFile = $this->fileUploader->upload($file, $userId);
         $this->mediaRepository->save($mediaFile);
         return $mediaFile;

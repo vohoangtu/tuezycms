@@ -177,14 +177,31 @@ class UserController extends BaseController
             return;
         }
 
+        // Determine legacy role: if admin role is selected, set role='admin'
+        $legacyRole = 'user';
+        if (!empty($data['roles'])) {
+            // Check if any selected role is admin (assumed role ID 1=Super Admin, 2=Admin)
+            // Ideally we fetch role names, but for now we trust IDs or key names.
+            // Better: Fetch roles from DB to check names.
+            foreach ($data['roles'] as $roleId) {
+                if (in_array((int)$roleId, [1, 2])) {
+                    $legacyRole = 'admin';
+                    break;
+                }
+            }
+        }
+
         // Create user
         $user = new User(
             $data['email'],
             password_hash($data['password'], PASSWORD_BCRYPT),
             $data['full_name'] ?? '',
-            'user',
-            $data['is_active'] ?? true
+            $legacyRole
         );
+        
+        if (isset($data['is_active'])) {
+             $user->setIsActive((bool)$data['is_active']);
+        }
 
         $this->userRepository->save($user);
 

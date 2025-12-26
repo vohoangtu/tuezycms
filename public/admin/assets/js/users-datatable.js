@@ -461,6 +461,10 @@ function openCreateModal() {
     document.getElementById('userId').value = '';
     document.getElementById('userPassword').required = true;
     document.getElementById('passwordRequired').style.display = 'inline';
+
+    // Reset roles checkboxes
+    document.querySelectorAll('.role-checkbox').forEach(cb => cb.checked = false);
+
     new bootstrap.Modal(document.getElementById('userModal')).show();
 }
 
@@ -481,9 +485,11 @@ async function editUser(id) {
             document.getElementById('passwordRequired').style.display = 'none';
             document.getElementById('userIsActive').checked = user.is_active;
 
-            const rolesSelect = document.getElementById('userRoles');
-            Array.from(rolesSelect.options).forEach(option => {
-                option.selected = user.roles.some(r => r.id == option.value);
+            document.getElementById('userIsActive').checked = user.is_active;
+
+            // set roles
+            document.querySelectorAll('.role-checkbox').forEach(cb => {
+                cb.checked = user.roles.some(r => r.id == cb.value);
             });
 
             new bootstrap.Modal(document.getElementById('userModal')).show();
@@ -500,7 +506,7 @@ async function saveUser() {
         full_name: document.getElementById('userFullName').value,
         password: document.getElementById('userPassword').value,
         is_active: document.getElementById('userIsActive').checked,
-        roles: Array.from(document.getElementById('userRoles').selectedOptions).map(o => parseInt(o.value))
+        roles: Array.from(document.querySelectorAll('.role-checkbox:checked')).map(cb => parseInt(cb.value))
     };
 
     const url = userId ? `/admin/api/users/${userId}` : '/admin/api/users';

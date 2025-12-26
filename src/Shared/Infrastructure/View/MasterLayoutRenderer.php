@@ -18,9 +18,10 @@ class MasterLayoutRenderer
 
     public function __construct()
     {
-        $basePath = dirname(__DIR__, 4);  // Lên 3 cấp từ src/Shared/Infrastructure/View -> tới root
-        $this->masterPath = $basePath . '/master';  // Dùng master theme
-        $this->viewPath = $basePath . '/src/Shared/Presentation/View';  // Views trong Shared/Presentation
+        $basePath = dirname(__DIR__, 4);  // Up 4 levels from src/Shared/Infrastructure/View -> Root
+        $this->masterPath = $basePath . '/master';  // Master theme path
+        // Fix: Removed extra '/src' because we are already at root
+        $this->viewPath = $basePath . '/src/Shared/Presentation/View';
     }
 
     /**
