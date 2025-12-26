@@ -159,8 +159,29 @@ class Request
      */
     public function path(): string
     {
-        $path = parse_url($this->server['REQUEST_URI'] ?? '/', PHP_URL_PATH);
-        return $path ?: '/';
+        $requestUri = parse_url($this->server['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+        $scriptName = $this->server['SCRIPT_NAME'] ?? '';
+        $scriptDir = dirname($scriptName);
+        
+        // Normalize slashes for Windows compatibility
+        $scriptDir = str_replace('\\', '/', $scriptDir);
+        
+        // Ensure scriptDir doesn't end with slash unless it's root
+        if ($scriptDir !== '/' && str_ends_with($scriptDir, '/')) {
+            $scriptDir = rtrim($scriptDir, '/');
+        }
+
+        // Strip script directory from URI if present
+        if ($scriptDir !== '/' && $scriptDir !== '.' && str_starts_with($requestUri, $scriptDir)) {
+            $path = substr($requestUri, strlen($scriptDir));
+            // Ensure path starts with /
+            if (!str_starts_with($path, '/')) {
+                $path = '/' . $path;
+            }
+            return $path;
+        }
+        
+        return $requestUri ?: '/';
     }
 
     /**

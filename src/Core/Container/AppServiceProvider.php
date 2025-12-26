@@ -15,6 +15,8 @@ use Modules\Promotion\Application\Service\PromotionService;
 use Modules\Article\Application\Service\SeoService;
 use Modules\Article\Application\Service\SiteSettingsService;
 use Modules\Article\Application\Service\WarehouseService;
+use Core\Routing\RouteRegistry;
+use Core\Routing\RouteDispatcher;
 use Shared\Infrastructure\Database\DatabaseConnection;
 use Modules\Article\Infrastructure\Repository\ArticleRepository;
 use Modules\Article\Infrastructure\Repository\ArticleTypeRepository;
@@ -64,6 +66,15 @@ class AppServiceProvider extends ServiceProvider
             return new FileUploader(
                 $container->make(LocalFileStorage::class),
                 $container->make(ImageProcessor::class)
+            );
+        });
+
+        // Register Routing Services
+        $container->singleton(RouteRegistry::class, RouteRegistry::class);
+        $container->singleton(RouteDispatcher::class, function($container) {
+            return new RouteDispatcher(
+                $container->make(RouteRegistry::class),
+                $container
             );
         });
 
